@@ -1,6 +1,6 @@
 ﻿@page "/Profile"
-
-
+@inject ApiClient Api
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
@@ -196,6 +196,8 @@ else
 
 
 
+
+
 @code {
     private IdentityUserDTO user;
 
@@ -206,14 +208,12 @@ else
     private bool editDob = false;
     private DateTime? newDob;
 
-
     private IBrowserFile selectedFile;
 
     private void SelectFile(InputFileChangeEventArgs e)
     {
         selectedFile = e.File;
     }
-
 
     private async Task UploadImage()
     {
@@ -223,49 +223,28 @@ else
         var content = new MultipartFormDataContent();
         content.Add(new StreamContent(stream), "file", $"{user.Id}.jpg");
 
-        var token = await Auth.GetTokenAsync();
-        if (!string.IsNullOrEmpty(token))
-        {
-            Http.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        }
+        // Use ApiClient for POST with HttpContent
+        var res = await Api.PostAsync("api/auth/upload-profile-image", content);
 
-        var res = await Http.PostAsync("api/auth/upload-profile-image", content);
-
-        if (res.IsSuccessStatusCode)
+        if (res?.IsSuccessStatusCode == true)
         {
-            // Get the URL returned by the API
             var newUrl = await res.Content.ReadAsStringAsync();
-
-            // Add Guid to prevent caching
             user.ProfileImageUrl = newUrl + $"?t={Guid.NewGuid()}";
-
             StateHasChanged();
             Console.WriteLine("Profile image uploaded successfully.");
         }
         else
         {
-            Console.WriteLine("Upload failed: " + res.ReasonPhrase);
+            Console.WriteLine("Upload failed: " + res?.ReasonPhrase);
         }
     }
+
     protected override async Task OnInitializedAsync()
     {
-        var token = await Auth.GetTokenAsync();
-        if (!string.IsNullOrEmpty(token))
-        {
-            Http.DefaultRequestHeaders.Authorization =
-                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        // Use ApiClient for GET
+        user = await Api.GetAsync<IdentityUserDTO>("api/auth/profile");
 
-            try
-            {
-                user = await Http.GetFromJsonAsync<IdentityUserDTO>("api/auth/profile");
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine("Error fetching profile: " + ex.Message);
-            }
-        }
-        else
+        if (user == null)
         {
             Nav.NavigateTo("/login");
         }
@@ -287,8 +266,8 @@ else
         if (string.IsNullOrEmpty(newUsername))
             return;
 
-        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { UserName = newUsername });
-        if (res.IsSuccessStatusCode)
+        var res = await Api.UpdateAsync("api/auth/update-profile", new { UserName = newUsername });
+        if (res?.IsSuccessStatusCode == true)
         {
             user.UserName = newUsername;
             editUsername = false;
@@ -311,8 +290,8 @@ else
         if (string.IsNullOrEmpty(newPhone))
             return;
 
-        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { PhoneNumber = newPhone });
-        if (res.IsSuccessStatusCode)
+        var res = await Api.UpdateAsync("api/auth/update-profile", new { PhoneNumber = newPhone });
+        if (res?.IsSuccessStatusCode == true)
         {
             user.PhoneNumber = newPhone;
             editPhone = false;
@@ -321,6 +300,7 @@ else
 
     private void GoToChangePassword() => Nav.NavigateTo("/change-password");
     private void Enable2FA() => Nav.NavigateTo("/enable-2fa");
+
     private void StartEditDob()
     {
         editDob = true;
@@ -337,13 +317,15 @@ else
         if (!newDob.HasValue)
             return;
 
-        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { DateOfBirth = newDob });
-        if (res.IsSuccessStatusCode)
+        var res = await Api.UpdateAsync("api/auth/update-profile", new { DateOfBirth = newDob });
+        if (res?.IsSuccessStatusCode == true)
         {
             user.DateOfBirth = newDob;
             editDob = false;
         }
     }
+
+
 
     public class IdentityUserDTO
     {

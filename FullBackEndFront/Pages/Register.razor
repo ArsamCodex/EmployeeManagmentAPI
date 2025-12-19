@@ -1,6 +1,8 @@
 ﻿@page "/register"
+@using EmployeeManagmentClient.Services
 @inject HttpClient Http
 @inject NavigationManager Nav
+@inject ApiClient Api
 
 
 
@@ -50,6 +52,7 @@
             if (Password == ReEnterPassword)
             {
                 var response = await Http.PostAsJsonAsync("api/auth/register", model);
+               //var response = await Api.CreateAsync("api/auth/register", model);
 
                 if (response.IsSuccessStatusCode)
                 {

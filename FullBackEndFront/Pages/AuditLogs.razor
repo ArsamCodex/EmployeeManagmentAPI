@@ -1,9 +1,11 @@
 ﻿@page "/audit-logs"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
 @inject NavigationManager Nav
 @attribute [Authorize(Roles = "Admin")]
+@inject ApiClient Api
 
 <h3>Audit / Logs</h3>
 
@@ -46,24 +48,19 @@ else
     {
         await LoadLogs();
     }
-
     private async Task LoadLogs()
     {
-        var token = await Auth.GetTokenAsync();
-        Console.WriteLine($"JWT: {token}");
-     
-
-        var request = new HttpRequestMessage(HttpMethod.Get, "api/roles/audit-logs");
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        var response = await Http.SendAsync(request);
-        if (response.IsSuccessStatusCode)
+        try
         {
-            logs = await response.Content.ReadFromJsonAsync<List<AuditLogDto>>();
+            // Use ApiClient GET for JWT-protected endpoint
+            logs = await Api.GetListAsync<AuditLogDto>("api/roles/audit-logs");
         }
-      
+        catch
+        {
+            logs = new List<AuditLogDto>();
+        }
     }
-
+ 
     public class AuditLogDto
     {
         public string UserEmail { get; set; }

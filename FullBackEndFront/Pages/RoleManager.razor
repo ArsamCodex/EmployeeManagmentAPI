@@ -1,9 +1,11 @@
 ﻿@page "/role-manager"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
 @inject NavigationManager Nav
 @attribute [Authorize(Roles = "Admin")]
+@inject ApiClient Api
 
 <h3>Role Manager</h3>
 
@@ -57,31 +59,25 @@ else
     {
         await LoadUsers();
     }
+
     private bool IsRemoveDisabled(UserDto user, string role)
     {
         return !(user.Roles != null && user.Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase)));
     }
+
     private bool IsAddDisabled(UserDto user, string role)
     {
         return user.Roles != null && user.Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase));
     }
+
     private async Task LoadUsers()
     {
-        var token = await Auth.GetTokenAsync();
-        if (string.IsNullOrWhiteSpace(token))
+        // Use ApiClient GET
+        var result = await Api.GetListAsync<UserDto>("api/roles/users");
+
+        if (result != null)
         {
-            Nav.NavigateTo("/login");
-            return;
-        }
-
-        var request = new HttpRequestMessage(HttpMethod.Get, "api/roles/users");
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        var response = await Http.SendAsync(request);
-
-        if (response.IsSuccessStatusCode)
-        {
-            users = await response.Content.ReadFromJsonAsync<List<UserDto>>();
+            users = result;
 
             // Ensure Roles is not null
             foreach (var user in users)
@@ -95,19 +91,11 @@ else
         }
     }
 
-   
-
     private async Task AddRole(UserDto user, string role)
     {
-        var token = await Auth.GetTokenAsync();
-        var request = new HttpRequestMessage(HttpMethod.Post, "api/roles/add-role")
-        {
-            Content = JsonContent.Create(new { UserId = user.Id, Role = role })
-        };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var res = await Api.PostAsync("api/roles/add-role", JsonContent.Create(new { UserId = user.Id, Role = role }));
 
-        var response = await Http.SendAsync(request);
-        if (response.IsSuccessStatusCode)
+        if (res?.IsSuccessStatusCode == true)
         {
             // Add to the list if not present
             if (!user.Roles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase)))
@@ -117,15 +105,9 @@ else
 
     private async Task RemoveRole(UserDto user, string role)
     {
-        var token = await Auth.GetTokenAsync();
-        var request = new HttpRequestMessage(HttpMethod.Post, "api/roles/remove-role")
-        {
-            Content = JsonContent.Create(new { UserId = user.Id, Role = role })
-        };
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var res = await Api.PostAsync("api/roles/remove-role", JsonContent.Create(new { UserId = user.Id, Role = role }));
 
-        var response = await Http.SendAsync(request);
-        if (response.IsSuccessStatusCode)
+        if (res?.IsSuccessStatusCode == true)
         {
             // Remove from the list if present
             var existingRole = user.Roles.FirstOrDefault(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
@@ -133,7 +115,6 @@ else
                 user.Roles.Remove(existingRole);
         }
     }
-
 
     public class UserDto
     {

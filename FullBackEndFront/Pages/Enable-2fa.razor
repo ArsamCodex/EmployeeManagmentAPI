@@ -1,9 +1,11 @@
 ﻿@page "/enable-2fa"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Components.Authorization
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
 @inject JwtAuthStateProvider Auth
+@inject ApiClient Api
 
 <h3>Two-Factor Authentication (2FA)</h3>
 
@@ -70,6 +72,7 @@ else
 
             // Check if 2FA is enabled
             var response = await Http.GetAsync($"api/auth/check-2fa/{CurrentUserId}");
+
             if (response.IsSuccessStatusCode)
             {
                 Is2FAEnabled = await response.Content.ReadFromJsonAsync<bool>();
@@ -163,13 +166,14 @@ else
             IsLoading = true;
             Error = null;
             SuccessMessage = null;
-
+            /*
             var token = await Auth.GetTokenAsync();
             Http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
+                */
             var model = new { UserId = CurrentUserId };
-            var response = await Http.PostAsJsonAsync("api/auth/reset-2fa", model);
+           // var response = await Http.PostAsJsonAsync("api/auth/reset-2fa", model);
+            var response = await Api.CreateAsync("api/auth/reset-2fa", model);
 
             if (!response.IsSuccessStatusCode)
             {
@@ -200,12 +204,14 @@ else
     {
         try
         {
+            /*
             var token = await Auth.GetTokenAsync(); // Get JWT token
             Http.DefaultRequestHeaders.Authorization =
                 new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
+                */
             var model = new { UserId = CurrentUserId };
-            var response = await Http.PostAsJsonAsync("api/auth/disable-2fa", model);
+           // var response = await Http.PostAsJsonAsync("api/auth/disable-2fa", model);
+            var response = await Api.CreateAsync("api/auth/disable-2fa", model);
 
             if (!response.IsSuccessStatusCode)
             {

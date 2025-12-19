@@ -22,6 +22,7 @@ builder.Services.AddScoped(sp =>
 builder.Services.AddScoped<IpServices>();
 builder.Logging.SetMinimumLevel(LogLevel.Debug);
 builder.Services.AddAuthorizationCore();
+builder.Services.AddScoped<ApiClient>();
 
 
 await builder.Build().RunAsync();

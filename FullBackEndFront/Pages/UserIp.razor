@@ -1,6 +1,7 @@
 ﻿@using EmployeeManagmentClient.Services
 @inject HttpClient Http
 @inject IpServices IpService
+@inject ApiClient Api
 
 
 
@@ -15,8 +16,9 @@
     {
         try
         {
-             var result = await Http.GetFromJsonAsync<IpResponse>("api/ip/getuserip");
+            var result = await Api.GetAsync<IpResponse>("api/ip/getuserip");
             ipAddress = result?.IpAddress ?? "Unable to retrieve IP";
+            // ipAddress = await IpService.GetPublicIpAsync();
            // ipAddress = await IpService.GetPublicIpAsync();
         }
         catch
