@@ -1,9 +1,11 @@
 ﻿@page "/admin/users/{Id}"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Admin")]
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
 @inject NavigationManager Nav
+@inject ApiClient Api
 
 <PageTitle>User Details</PageTitle>
 <PageTitle>User Full Details</PageTitle>

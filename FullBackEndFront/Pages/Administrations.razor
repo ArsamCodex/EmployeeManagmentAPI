@@ -1,9 +1,11 @@
 ﻿@page "/Admin"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @attribute [Authorize(Roles = "Admin")]
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
 @inject NavigationManager Nav
+@inject ApiClient Api
 
 <PageTitle>Admin - Users</PageTitle>
 
@@ -79,20 +81,12 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var token = await Auth.GetTokenAsync();
-        if (string.IsNullOrEmpty(token))
-        {
-            Nav.NavigateTo("/login");
-            return;
-        }
-
-        Http.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+       
 
         try
         {
-            users = await Http.GetFromJsonAsync<List<AdminUserListDTO>>(
-                "api/Users/admin/users");
+            users = await Api.GetListAsync<AdminUserListDTO>("api/Users/admin/users");
+
         }
         catch
         {

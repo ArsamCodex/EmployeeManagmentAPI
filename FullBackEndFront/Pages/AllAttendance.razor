@@ -1,7 +1,10 @@
 ﻿@page "/all-attendance/{UserId}"
 @using System.Net.Http.Headers
+@using EmployeeManagmentClient.Services
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
+@inject ApiClient Api
+
 <h3>All Attendance Records</h3>
 
 @if (attendances == null)
@@ -45,18 +48,13 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // Get JWT token from local storage (or wherever you store it)
-        var token = await Auth.GetTokenAsync();
-        if (!string.IsNullOrEmpty(token))
-        {
-            Http.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-        }
 
+       
         try
         {
-            // Call your protected API endpoint
-            attendances = await Http.GetFromJsonAsync<List<AttendanceDTO>>($"api/Users/attendance/{UserId}");
+           
+            attendances = await Api.GetListAsync<AttendanceDTO>($"api/Users/attendance/{UserId}");
+
         }
         catch (Exception ex)
         {

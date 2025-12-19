@@ -1,7 +1,9 @@
 ﻿@page "/admin/leave-requests"
+@using EmployeeManagmentClient.Services
 @using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject JwtAuthStateProvider Auth
+@inject ApiClient Api
 @attribute [Authorize(Roles = "Admin")]
 
 <PageTitle>Leave Requests</PageTitle>
@@ -79,22 +81,15 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var token = await Auth.GetTokenAsync();
-        Http.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-        leaveRequests = await Http.GetFromJsonAsync<List<LeaveRequestAdminDto>>(
-            "api/Users/admin/leave-requests");
+      
+        leaveRequests = await Api.GetListAsync<LeaveRequestAdminDto>("api/Users/admin/leave-requests");
     }
 
     async Task UpdateStatus(int id, string status)
     {
-        var token = await Auth.GetTokenAsync();
-        Http.DefaultRequestHeaders.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-        var response = await Http.PutAsJsonAsync(
-            $"api/Users/admin/leave-requests/{id}/status", status);
+        var response = await Api.UpdateAsync("api/Users/admin/leave-requests/{id}/status", status);
+
 
         if (response.IsSuccessStatusCode)
         {
