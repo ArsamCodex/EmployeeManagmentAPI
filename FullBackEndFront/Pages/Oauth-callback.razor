@@ -1,0 +1,24 @@
+﻿@page "/oauth-callback"
+@inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+@inject JwtAuthStateProvider Auth
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("token", out var token))
+        {
+         //  await LocalStorage.SetItemAsync("jwt", token.ToString());
+            await Auth.SetTokenAsync(token);
+            Nav.NavigateTo("/");
+        }
+        else
+        {
+            // Handle error
+            Console.WriteLine("OAuth login failed or token missing");
+        }
+    }
+}

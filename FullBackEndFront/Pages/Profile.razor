@@ -1,0 +1,380 @@
+﻿@page "/Profile"
+
+
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+@attribute [Authorize]
+
+<PageTitle>User Profile</PageTitle>
+
+
+
+
+@if (user == null)
+{
+    <div class="d-flex flex-column align-items-center mt-5">
+        <div class="spinner-border text-primary" role="status"></div>
+        <p class="mt-3">Loading user profile...</p>
+    </div>
+}
+else
+{
+    <div class="container mt-4">
+        <div class="card shadow-lg border-0 rounded-4">
+            <div class="card-body p-4">
+
+                <!-- Profile Header -->
+                <div class="text-center mb-4">
+                    <img src="@user.ProfileImageUrl"
+                         class="rounded-circle shadow"
+                         style="width:130px;height:130px;object-fit:cover;" />
+                    <div class="mt-2 d-flex justify-content-center align-items-center gap-2">
+                        <InputFile OnChange="SelectFile" accept="image/*" class="form-control form-control-sm" style="width:200px;" />
+                        <button class="btn btn-primary btn-sm" style="height:38px;" @onclick="UploadImage" disabled="@(selectedFile == null)">
+                            Upload
+                        </button>
+                    </div>
+                </div>
+
+                <hr />
+
+                <!-- User Info -->
+                <div class="mb-4">
+                    <h5 class="fw-bold mb-3">Account Details</h5>
+
+                    <div class="row g-3">
+                        <!-- User ID -->
+                        <div class="col-md-6">
+                            <label class="text-muted">User ID</label>
+                            <div class="form-control-plaintext">@user.Id</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted">Contract Type</label>
+                            <div class="form-control-plaintext">@user.ContractType</div>
+                        </div>
+                        <!-- Username editable -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Username</label>
+                            @if (editUsername)
+                            {
+                                <div class="d-flex">
+                                    <InputText class="form-control" @bind-Value="newUsername" />
+                                    <button class="btn btn-success ms-2" @onclick="SaveUsername">Save</button>
+                                    <button class="btn btn-secondary ms-2" @onclick="CancelUsernameEdit">Cancel</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center">
+                                    <span>@user.UserName</span>
+                                    <button class="btn btn-outline-primary btn-sm ms-2" @onclick="StartEditUsername">Edit</button>
+                                </div>
+                            }
+                        </div>
+
+                        <!-- Email -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Email</label>
+                            <div class="form-control-plaintext">@user.Email</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted">First Name</label>
+                            <div class="form-control-plaintext">@user.FirstName</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted">Last Name</label>
+                            <div class="form-control-plaintext">@user.LastName</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="text-muted">Email Confirmed</label>
+                            <div class="badge bg-@(user.EmailConfirmed ? "success" : "secondary")">
+                                @(user.EmailConfirmed ? "Yes" : "No")
+                            </div>
+                        </div>
+
+                        <!-- Phone editable -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Phone Number</label>
+                            @if (editPhone)
+                            {
+                                <div class="d-flex">
+                                    <InputText class="form-control" @bind-Value="newPhone" />
+                                    <button class="btn btn-success ms-2" @onclick="SavePhone">Save</button>
+                                    <button class="btn btn-secondary ms-2" @onclick="CancelPhoneEdit">Cancel</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center">
+                                    <span>@user.PhoneNumber</span>
+                                    <button class="btn btn-outline-primary btn-sm ms-2" @onclick="StartEditPhone">Edit</button>
+                                </div>
+                            }
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="text-muted">Phone Confirmed</label>
+                            <div class="badge bg-@(user.PhoneNumberConfirmed ? "success" : "secondary")">
+                                @(user.PhoneNumberConfirmed ? "Yes" : "No")
+                            </div>
+                        </div>
+
+                        <!-- Date of Birth -->
+                        <!-- Date of Birth editable -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Date of Birth</label>
+                            @if (editDob)
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <InputDate class="form-control" @bind-Value="newDob" />
+                                    <button class="btn btn-success btn-sm" @onclick="SaveDob">Save</button>
+                                    <button class="btn btn-secondary btn-sm" @onclick="CancelDobEdit">Cancel</button>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>@(user.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-")</span>
+                                    <button class="btn btn-outline-primary btn-sm" @onclick="StartEditDob">Edit</button>
+                                </div>
+                            }
+                        </div>
+
+
+                        <!-- Hire Date -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Hire Date</label>
+                            <div class="form-control-plaintext">
+                                @(user.HireDate?.ToString("dd/MM/yyyy") ?? "-")
+                            </div>
+                        </div>
+
+                        <!-- Job Title -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Job Title</label>
+                            <div class="form-control-plaintext">
+                                @(user.JobTitle ?? "-")
+                            </div>
+                        </div>
+
+                        <!-- Lockout -->
+                        <div class="col-md-6">
+                            <label class="text-muted">Lockout End</label>
+                            <div class="form-control-plaintext">
+                                @user.LockoutEnd?.ToString("dd/MM/yyyy HH:mm")
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="text-muted">Lockout Enabled</label>
+                            <div class="badge bg-@(user.LockoutEnabled ? "danger" : "secondary")">
+                                @(user.LockoutEnabled ? "Yes" : "No")
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <label class="text-muted">Access Failed Count</label>
+                            <div class="form-control-plaintext">@user.AccessFailedCount</div>
+                        </div>
+                    </div>
+                </div>
+
+                <hr />
+
+                <!-- Buttons -->
+                <div class="text-center mt-4">
+                    <button class="btn btn-primary me-2" @onclick="GoToChangePassword">Change Password</button>
+                    <button class="btn btn-warning" @onclick="Enable2FA">Enable 2FA</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    private IdentityUserDTO user;
+
+    private bool editUsername = false;
+    private bool editPhone = false;
+    private string? newUsername;
+    private string? newPhone;
+    private bool editDob = false;
+    private DateTime? newDob;
+
+
+    private IBrowserFile selectedFile;
+
+    private void SelectFile(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+    }
+
+
+    private async Task UploadImage()
+    {
+        if (selectedFile == null) return;
+
+        using var stream = selectedFile.OpenReadStream(10 * 1024 * 1024);
+        var content = new MultipartFormDataContent();
+        content.Add(new StreamContent(stream), "file", $"{user.Id}.jpg");
+
+        var token = await Auth.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        }
+
+        var res = await Http.PostAsync("api/auth/upload-profile-image", content);
+
+        if (res.IsSuccessStatusCode)
+        {
+            // Get the URL returned by the API
+            var newUrl = await res.Content.ReadAsStringAsync();
+
+            // Add Guid to prevent caching
+            user.ProfileImageUrl = newUrl + $"?t={Guid.NewGuid()}";
+
+            StateHasChanged();
+            Console.WriteLine("Profile image uploaded successfully.");
+        }
+        else
+        {
+            Console.WriteLine("Upload failed: " + res.ReasonPhrase);
+        }
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await Auth.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            try
+            {
+                user = await Http.GetFromJsonAsync<IdentityUserDTO>("api/auth/profile");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Error fetching profile: " + ex.Message);
+            }
+        }
+        else
+        {
+            Nav.NavigateTo("/login");
+        }
+    }
+
+    private void StartEditUsername()
+    {
+        editUsername = true;
+        newUsername = user?.UserName;
+    }
+
+    private void CancelUsernameEdit()
+    {
+        editUsername = false;
+    }
+
+    private async Task SaveUsername()
+    {
+        if (string.IsNullOrEmpty(newUsername))
+            return;
+
+        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { UserName = newUsername });
+        if (res.IsSuccessStatusCode)
+        {
+            user.UserName = newUsername;
+            editUsername = false;
+        }
+    }
+
+    private void StartEditPhone()
+    {
+        editPhone = true;
+        newPhone = user?.PhoneNumber;
+    }
+
+    private void CancelPhoneEdit()
+    {
+        editPhone = false;
+    }
+
+    private async Task SavePhone()
+    {
+        if (string.IsNullOrEmpty(newPhone))
+            return;
+
+        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { PhoneNumber = newPhone });
+        if (res.IsSuccessStatusCode)
+        {
+            user.PhoneNumber = newPhone;
+            editPhone = false;
+        }
+    }
+
+    private void GoToChangePassword() => Nav.NavigateTo("/change-password");
+    private void Enable2FA() => Nav.NavigateTo("/enable-2fa");
+    private void StartEditDob()
+    {
+        editDob = true;
+        newDob = user?.DateOfBirth;
+    }
+
+    private void CancelDobEdit()
+    {
+        editDob = false;
+    }
+
+    private async Task SaveDob()
+    {
+        if (!newDob.HasValue)
+            return;
+
+        var res = await Http.PutAsJsonAsync("api/auth/update-profile", new { DateOfBirth = newDob });
+        if (res.IsSuccessStatusCode)
+        {
+            user.DateOfBirth = newDob;
+            editDob = false;
+        }
+    }
+
+    public class IdentityUserDTO
+    {
+        // Identity properties
+        public string Id { get; set; }
+        public string UserName { get; set; }
+        public string NormalizedUserName { get; set; }
+        public string Email { get; set; }
+        public string NormalizedEmail { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public string PhoneNumber { get; set; }
+        public bool PhoneNumberConfirmed { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public bool LockoutEnabled { get; set; }
+        public int AccessFailedCount { get; set; }
+
+        // Personal Info
+        public string? FirstName { get; set; }
+        public string? LastName { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+
+        // Profile Image
+        public string? ProfileImageUrl { get; set; }
+
+        // Employment Info
+        public DateTime? HireDate { get; set; }
+        public string? JobTitle { get; set; }
+        public string? ContractType { get; set; }
+
+
+ 
+    }
+
+}

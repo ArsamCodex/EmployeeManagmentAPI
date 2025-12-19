@@ -1,0 +1,26 @@
+﻿@page "/confirm-email"
+
+@inject NavigationManager Nav
+@inject HttpClient Http
+
+<h3>@Message</h3>
+
+@code {
+    public string Message { get; set; }
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+        var userId = query["userId"];
+        var token = query["token"];
+
+        await Http.PostAsJsonAsync("api/auth/confirm-email", new
+        {
+            UserId = userId,
+            Token = token
+        });
+
+        Message = "Email Has Been Confirmed";
+    }
+}

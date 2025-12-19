@@ -1,0 +1,8 @@
+﻿
+Email Sender implemented and tested , for setup u need to make gmail in rightway .
+Now it generate confirmation email and i tested it woks . u need app password for gmail and not password.
+Line 58-59   string confirmUrl =
+                $"{_config["Frontend:BaseUrl"]}/confirm-email?userId={user.Id}&token={encodedToken}";
+            Console.WriteLine(confirmUrl);
+            u can copy manualy this generated link into browser and user get confirmed
+-------------------------------------------------

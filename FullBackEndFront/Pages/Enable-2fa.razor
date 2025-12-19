@@ -1,0 +1,232 @@
+﻿@page "/enable-2fa"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+@inject JwtAuthStateProvider Auth
+
+<h3>Two-Factor Authentication (2FA)</h3>
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <p class="error">@Error</p>
+}
+
+@if (!string.IsNullOrEmpty(SuccessMessage))
+{
+    <p class="success">@SuccessMessage</p>
+}
+
+@if (IsLoading)
+{
+    <p>Loading...</p>
+}
+else if (Is2FAEnabled)
+{
+    <p>✅ 2FA is already enabled for your account.</p>
+    <button class="btn-login" @onclick="Reset2FA" disabled="@IsLoading">Reset Google Authenticator Key</button>
+    <button class="btn-login" @onclick="Disable2FA">Disable 2FA</button>
+}
+else if (!string.IsNullOrEmpty(QrCodeImage))
+{
+    <p>Scan this QR code with Google Authenticator:</p>
+    <img src="@QrCodeImage" alt="QR Code" />
+
+    <p>Or enter this key manually: <strong>@SecretKey</strong></p>
+
+    <input class="input" @bind="TwoFactorCode" placeholder="Enter 6-digit code" /><br />
+    <button class="btn-login" @onclick="Verify2FA" disabled="@IsLoading">Verify & Enable 2FA</button>
+}
+else
+{
+    <button class="btn-login" @onclick="Enable2FA" disabled="@IsLoading">Enable 2FA</button>
+}
+
+@code {
+    string QrCodeImage;
+    string SecretKey;
+    string TwoFactorCode;
+    string Error;
+    string SuccessMessage;
+    string CurrentUserId;
+    bool Is2FAEnabled = false;
+    bool IsLoading = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            IsLoading = true;
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            if (!user.Identity.IsAuthenticated)
+            {
+                Error = "User not logged in";
+                return;
+            }
+
+            CurrentUserId = user.FindFirst(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            // Check if 2FA is enabled
+            var response = await Http.GetAsync($"api/auth/check-2fa/{CurrentUserId}");
+            if (response.IsSuccessStatusCode)
+            {
+                Is2FAEnabled = await response.Content.ReadFromJsonAsync<bool>();
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
+            {
+                Error = "User not found.";
+            }
+            else
+            {
+                Error = "Failed to check 2FA status.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task Enable2FA()
+    {
+        try
+        {
+            IsLoading = true;
+            Error = null;
+            SuccessMessage = null;
+
+            var response = await Http.PostAsJsonAsync("api/auth/enable-2fa", new { UserId = CurrentUserId });
+            if (!response.IsSuccessStatusCode)
+            {
+                Error = "Failed to enable 2FA";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<Enable2FaResponse>();
+            SecretKey = result.Key;
+            QrCodeImage = $"https://api.qrserver.com/v1/create-qr-code/?data={Uri.EscapeDataString(result.QrCodeUri)}&size=200x200";
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task Verify2FA()
+    {
+        try
+        {
+            IsLoading = true;
+            Error = null;
+            SuccessMessage = null;
+
+            var model = new { UserId = CurrentUserId, Code = TwoFactorCode };
+            var response = await Http.PostAsJsonAsync("api/auth/verify-2fa", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Error = "Invalid 2FA code";
+                return;
+            }
+
+            // Update UI
+            Is2FAEnabled = true;
+            QrCodeImage = null;
+            SecretKey = null;
+            TwoFactorCode = "";
+            SuccessMessage = "✅ 2FA enabled successfully!";
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task Reset2FA()
+    {
+        try
+        {
+            IsLoading = true;
+            Error = null;
+            SuccessMessage = null;
+
+            var token = await Auth.GetTokenAsync();
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var model = new { UserId = CurrentUserId };
+            var response = await Http.PostAsJsonAsync("api/auth/reset-2fa", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                Error = $"Failed to reset 2FA key: {message}";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<Enable2FaResponse>();
+            SecretKey = result.Key;
+            QrCodeImage = $"https://api.qrserver.com/v1/create-qr-code/?data={Uri.EscapeDataString(result.QrCodeUri)}&size=200x200";
+
+            // Force user to verify new 2FA code
+            Is2FAEnabled = false;
+            TwoFactorCode = "";
+            SuccessMessage = "✅ New 2FA key generated. Please verify!";
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+    private async Task Disable2FA()
+    {
+        try
+        {
+            var token = await Auth.GetTokenAsync(); // Get JWT token
+            Http.DefaultRequestHeaders.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var model = new { UserId = CurrentUserId };
+            var response = await Http.PostAsJsonAsync("api/auth/disable-2fa", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var message = await response.Content.ReadAsStringAsync();
+                Error = $"Failed to disable 2FA: {message}";
+                return;
+            }
+
+            Is2FAEnabled = false;
+            SuccessMessage = "✅ Two-Factor Authentication has been disabled.";
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+
+    public class Enable2FaResponse
+    {
+        public string Key { get; set; }
+        public string QrCodeUri { get; set; }
+    }
+}

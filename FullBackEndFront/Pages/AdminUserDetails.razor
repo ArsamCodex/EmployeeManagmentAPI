@@ -1,0 +1,466 @@
+﻿@page "/admin/users/{Id}"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>User Details</PageTitle>
+<PageTitle>User Full Details</PageTitle>
+
+<h3 class="mb-4">User Full Details</h3>
+
+@if (user == null)
+{
+    <div class="text-center">
+        <div class="spinner-border text-primary"></div>
+        <p>Loading user data...</p>
+    </div>
+}
+else
+{
+    <div class="card shadow p-4">
+
+        <!-- ================= BASIC INFO ================= -->
+        <div class="text-center mb-4">
+            <img src="@(user.ProfileImageUrl ?? "/profiles/default.jpg")"
+                 style="width:120px;height:120px;border-radius:50%;object-fit:cover;" />
+            <h4 class="mt-2">@user.FirstName @user.LastName</h4>
+            <p class="text-muted">@user.JobTitle</p>
+        </div>
+
+        <hr />
+
+        <!-- ================= IDENTITY ================= -->
+        <h5>Identity</h5>
+        <table class="table table-sm table-bordered">
+            <tr><td>User ID</td><td>@user.Id</td></tr>
+            <tr><td>Username</td><td>@user.UserName</td></tr>
+            <tr><td>Email</td><td>@user.Email</td></tr>
+            <tr><td>Phone</td><td>@user.PhoneNumber</td></tr>
+        </table>
+
+        <!-- ================= PERSONAL INFO ================= -->
+        <h5>Personal Information</h5>
+        <table class="table table-sm table-bordered">
+            <tr><td>First Name</td><td>@user.FirstName</td></tr>
+            <tr><td>Last Name</td><td>@user.LastName</td></tr>
+            <tr>
+                <td>Date of Birth</td>
+                <td>@(user.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-")</td>
+            </tr>
+        </table>
+
+        <!-- ================= EMPLOYMENT ================= -->
+        <h5>Employment Information</h5>
+        <table class="table table-sm table-bordered">
+            <tr>
+                <td>Hire Date</td>
+                <td>@(user.HireDate?.ToString("dd/MM/yyyy") ?? "-")</td>
+                <td>Contract Type</td>
+
+            </tr>
+            <tr>
+                <td>Job Title</td>
+                <td>@user.JobTitle</td>
+                <td>@user.ContractType</td>
+
+            </tr>
+        </table>
+
+        <!-- ================= DEPARTMENT ================= -->
+        <h5>Department</h5>
+        @if (user.Department != null)
+        {
+            <table class="table table-sm table-bordered">
+                <tr><td>Name</td><td>@user.Department.Name</td></tr>
+                <tr><td>Description</td><td>@user.Department.Description</td></tr>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No department assigned</p>
+        }
+
+        <!-- ================= MANAGER & SUBORDINATES ================= -->
+        <h5>Hierarchy</h5>
+        <table class="table table-sm table-bordered">
+            <tr><td>Manager</td><td>@(user.ManagerId ?? "None")</td></tr>
+            <tr>
+                <td>Subordinates</td>
+                <td>
+                    @if (user.Subordinates.Any())
+                    {
+                        <ul class="mb-0">
+                            @foreach (var s in user.Subordinates)
+                            {
+                                <li>@s</li>
+                            }
+                        </ul>
+                    }
+                    else
+                    {
+                        
+                                }
+                </td>
+            </tr>
+        </table>
+
+        <!-- ================= ASSETS ================= -->
+        <h5>Assets</h5>
+        @if (user.Assets.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Serial</th>
+                        <th>Assigned Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var a in user.Assets)
+                    {
+                        <tr>
+                            <td>@a.Name</td>
+                            <td>@a.SerialNumber</td>
+                            <td>@a.AssignedDate.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No assets assigned</p>
+        }
+
+        <!-- ================= ATTENDANCE ================= -->
+        <h5>Attendance</h5>
+        @if (user.Attendances.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Check In</th>
+                        <th>Check Out</th>
+                        <th>Status</th>
+                        <th>All Data</th>
+                    </tr>
+                </thead>
+                <tbody>
+
+                    @foreach (var a in user.Attendances.TakeLast(1))
+                    {
+                        <tr>
+                            <td>@a.Date.ToString("dd/MM/yyyy")</td>
+                            <td>@a.CheckIn.ToShortTimeString()</td>
+                            <td>@a.CheckOut?.ToShortTimeString()</td>
+                            <td>@a.Status</td>
+                            <td><button class="btn btn-primary" @onclick="() => GoToAllData(user.Id)">All Data</button></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No attendance records</p>
+        }
+        <!-- ================= Leave Request ================= -->
+        <h5>Leave Requests</h5>
+
+        @if (user.LeaveRequests == null || !user.LeaveRequests.Any())
+        {
+            <p class="text-muted">No leave requests</p>
+        }
+        else
+        {
+            var pendingCount = user.LeaveRequests.Count(l => l.Status == "Pending");
+
+            if (pendingCount == 0)
+            {
+                <p class="text-muted">No new leave requests</p>
+            }
+            else
+            {
+                <a href="/admin/leave-requests"
+                   class="text-decoration-none">
+                    <div class="alert alert-warning d-inline-block mb-0"
+                         style="cursor:pointer">
+                        @pendingCount new leave request@(pendingCount > 1 ? "s" : "")
+                        <span class="ms-2">→ View</span>
+                    </div>
+                </a>
+            }
+        }
+
+
+
+        <!-- ================= PAYROLL ================= -->
+        <h5>Payroll</h5>
+        @if (user.Payrolls.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Payment Date</th>
+                        <th>Basic</th>
+                        <th>Bonus</th>
+                        <th>Deductions</th>
+                        <th>Net</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in user.Payrolls)
+                    {
+                        <tr>
+                            <td>@p.PaymentDate.ToString("dd/MM/yyyy")</td>
+                            <td>@p.BasicSalary</td>
+                            <td>@p.Bonus</td>
+                            <td>@p.Deductions</td>
+                            <td><b>@p.NetSalary</b></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No payroll records</p>
+        }
+
+        <!-- ================= PERFORMANCE ================= -->
+        <h5>Performance Reviews</h5>
+        @if (user.PerformanceReviews.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Score</th>
+                        <th>Comments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in user.PerformanceReviews)
+                    {
+                        <tr>
+                            <td>@r.ReviewDate.ToString("dd/MM/yyyy")</td>
+                            <td>@r.Score</td>
+                            <td>@r.Comments</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No performance reviews</p>
+        }
+
+        <!-- ================= PROJECTS ================= -->
+        <h5>Projects</h5>
+        @if (user.Projects.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Project Name</th>
+                        <th>Role</th>
+                        <th>Assigned Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var p in user.Projects)
+                    {
+                        <tr>
+                            <td>@p.ProjectName</td>
+                            <td>@p.RoleInProject</td>
+                            <td>@p.AssignedDate.ToString("dd/MM/yyyy")</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No project assignments</p>
+        }
+
+        <!-- ================= NOTIFICATIONS ================= -->
+        <h5>Notifications</h5>
+        @if (user.Notifications.Any())
+        {
+            <table class="table table-bordered">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Date</th>
+                        <th>Message</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var n in user.Notifications)
+                    {
+                        <tr>
+                            <td>@n.Title</td>
+                            <td>@n.CreatedAt.ToString("dd/MM/yyyy")</td>
+                            <td>@n.Message</td>
+                            <td>
+                                <span class="badge bg-@(n.IsRead ? "secondary" : "warning")">
+                                    @(n.IsRead ? "Read" : "Unread")
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+        else
+        {
+            <p class="text-muted">No notifications</p>
+        }
+
+        <button class="btn btn-secondary mt-4" @onclick="GoBack">
+            Back to Users
+        </button>
+    </div>
+}
+
+@code {
+    [Parameter] public string Id { get; set; }
+
+    private AdminUserDetailsDTO user;
+
+    private void GoToAllData(string userId)
+    {
+        // Navigate to a new page with the user ID as a query parameter
+        Nav.NavigateTo($"/all-attendance/{userId}");
+    }
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await Auth.GetTokenAsync();
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        user = await Http.GetFromJsonAsync<AdminUserDetailsDTO>(
+            $"api/Users/admin/users/{Id}");
+    }
+
+
+    private void GoBack()
+    {
+        Nav.NavigateTo("/admin");
+    }
+
+
+   public class AdminUserDetailsDTO
+{
+    public string Id { get; set; }
+    public string UserName { get; set; }
+    public string Email { get; set; }
+    public string PhoneNumber { get; set; }
+    public string? ProfileImageUrl { get; set; }
+
+    // Personal
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+
+    // Employment
+    public DateTime? HireDate { get; set; }
+    public string? JobTitle { get; set; }
+    public DepartmentDTO? Department { get; set; }
+    public string? ManagerId { get; set; }
+        public string? ContractType { get; set; }
+
+    public List<string> Subordinates { get; set; } = new();
+
+    public List<AssetDTO> Assets { get; set; } = new();
+    public List<AttendanceDTO> Attendances { get; set; } = new();
+    public List<LeaveRequestDTO> LeaveRequests { get; set; } = new();
+    public List<PayrollDTO> Payrolls { get; set; } = new();
+    public List<PerformanceReviewDTO> PerformanceReviews { get; set; } = new();
+    public List<ProjectDTO> Projects { get; set; } = new();
+    public List<NotificationDTO> Notifications { get; set; } = new();
+}
+ public class AssetDTO
+    {
+        public string Name { get; set; }
+        public string SerialNumber { get; set; }
+        public DateTime AssignedDate { get; set; }
+    }
+
+    public class AttendanceDTO
+    {
+        public DateTime Date { get; set; }
+        public DateTime CheckIn { get; set; }
+        public DateTime? CheckOut { get; set; }
+        public string Status { get; set; }
+    }
+
+    public class LeaveRequestDTO
+    {
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string LeaveType { get; set; }
+        public string Status { get; set; }
+        public string Reason { get; set; }
+    }
+
+    public class PayrollDTO
+    {
+        public decimal BasicSalary { get; set; }
+        public decimal Bonus { get; set; }
+        public decimal Deductions { get; set; }
+        public decimal NetSalary { get; set; }
+        public DateTime PaymentDate { get; set; }
+    }
+
+    public class PerformanceReviewDTO
+    {
+        public DateTime ReviewDate { get; set; }
+        public int Score { get; set; }
+        public string Comments { get; set; }
+    }
+
+    public class ProjectDTO
+    {
+        public string ProjectName { get; set; }
+        public string RoleInProject { get; set; }
+        public DateTime AssignedDate { get; set; }
+    }
+
+    public class NotificationDTO
+    {
+        public string Title { get; set; }
+        public string Message { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public bool IsRead { get; set; }
+    }
+
+    public class DepartmentDTO
+    {
+        public string Name { get; set; }
+        public string Description { get; set; }
+    }
+
+
+    public class AdminUserListDTO
+    {
+        public string Id { get; set; }
+        public string UserName { get; set; }
+        public string Email { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public string? PhoneNumber { get; set; }
+        public bool LockoutEnabled { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public string? ProfileImageUrl { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+
+    }
+
+}

@@ -1,0 +1,43 @@
+﻿@page "/test-api"
+@inject HttpClient Http
+
+<h3>Test API Call</h3>
+
+<button @onclick="CallApi">Call Test Endpoint</button>
+
+@if (!string.IsNullOrEmpty(Result))
+{
+    <p>Response: @Result</p>
+}
+
+@if (!string.IsNullOrEmpty(Error))
+{
+    <p style="color:red">Error: @Error</p>
+}
+
+@code {
+    private string Result;
+    private string Error;
+
+    private async Task CallApi()
+    {
+        try
+        {
+            // Make GET request to your API
+            var response = await Http.GetAsync("https://localhost:7237/api/auth/test");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Result = await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                Error = $"Status code: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+}

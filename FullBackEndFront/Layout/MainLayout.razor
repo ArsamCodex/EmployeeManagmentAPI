@@ -1,0 +1,90 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inherits LayoutComponentBase
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+
+<div class="page">
+    <div class="sidebar">
+        <NavMenu />
+    </div>
+
+    <main>
+        <div class="top-row px-4" style="display: flex; align-items: center; gap: 10px;">
+            @if (IsLoggedIn)
+            {
+                <span>
+                    Hello! <span class="bi bi-person-fill" style="color:red;"></span>
+                    <b>@UserEmail</b>
+                </span>
+
+            }
+
+            <button class="auth-btn" @onclick="HandleAuth">
+                @ButtonText
+            </button>
+
+            <button class="auth-btn register-btn" @onclick="GoToRegister">
+                Register
+            </button>
+            <EmployeeManagmentClient.Pages.UserIp></EmployeeManagmentClient.Pages.UserIp>
+        </div>
+
+        <article class="content px-4">
+            @Body
+        </article>
+    </main>
+</div>
+
+@code {
+    private string? UserEmail;
+    private bool IsLoggedIn;
+    private string ButtonText = "Login";
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthStateProvider.AuthenticationStateChanged += async (task) => await OnAuthStateChanged(task);
+        await UpdateButtonText();
+    }
+
+    private async Task OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await UpdateButtonText();
+        StateHasChanged();
+    }
+
+    private async Task UpdateButtonText()
+    {
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        IsLoggedIn = user.Identity?.IsAuthenticated ?? false;
+
+        UserEmail = IsLoggedIn
+            ? user.FindFirst("email")?.Value ?? user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+            : null;
+
+        ButtonText = IsLoggedIn ? "Logout" : "Login";
+    }
+
+    private async Task HandleAuth()
+    {
+        var auth = (JwtAuthStateProvider)AuthStateProvider;
+        var state = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = state.User;
+
+        if (user.Identity?.IsAuthenticated ?? false)
+        {
+            await auth.LogoutAsync();
+            Nav.NavigateTo("/", forceLoad: true);
+        }
+        else
+        {
+            Nav.NavigateTo("/login");
+        }
+    }
+
+    private void GoToRegister()
+    {
+        Nav.NavigateTo("/register");
+    }
+}

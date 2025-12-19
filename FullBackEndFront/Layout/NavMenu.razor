@@ -1,0 +1,61 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">EmployeeManagmentClient</a>
+        <button title="Navigation menu" class="navbar-toggler" @onclick="ToggleNavMenu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </div>
+</div>
+
+<div class="@NavMenuCssClass nav-scrollable" @onclick="ToggleNavMenu">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+            <NavLink class="nav-link" href="/Leave-Request" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Leave Request
+            </NavLink>
+        </div>
+        <div class="nav-item px-3">
+            <AuthorizeView Roles="Admin">
+                <Authorized>
+                    <NavLink class="nav-link" href="role-manager">
+                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Role Manager
+                    </NavLink>
+                    <NavLink class="nav-link" href="audit-logs">
+                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Audit
+                    </NavLink>
+                    <NavLink class="nav-link" href="Admin">
+                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Administration
+                    </NavLink>
+                    <NavLink class="nav-link" href="admin/Allleave-requests">
+                        <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Leave Requests
+                    </NavLink>
+                </Authorized>
+            
+            </AuthorizeView>
+        </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="Profile" Match="NavLinkMatch.All">
+                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Profile
+            </NavLink>
+        </div>
+
+
+
+
+    </nav>
+</div>
+
+@code {
+    private bool collapseNavMenu = true;
+
+    private string? NavMenuCssClass => collapseNavMenu ? "collapse" : null;
+
+    private void ToggleNavMenu()
+    {
+        collapseNavMenu = !collapseNavMenu;
+    }
+}

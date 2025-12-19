@@ -1,0 +1,32 @@
+﻿@using EmployeeManagmentClient.Services
+@inject HttpClient Http
+@inject IpServices IpService
+
+
+
+
+    <p>@ipAddress</p>
+
+
+@code {
+    private string ipAddress;
+    private string ipAddress2;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+             var result = await Http.GetFromJsonAsync<IpResponse>("api/ip/getuserip");
+            ipAddress = result?.IpAddress ?? "Unable to retrieve IP";
+           // ipAddress = await IpService.GetPublicIpAsync();
+        }
+        catch
+        {
+            ipAddress = "Unable to retrieve IP";
+        }
+    }
+
+    private class IpResponse
+    {
+        public string IpAddress { get; set; }
+    }
+}

@@ -1,0 +1,79 @@
+﻿@page "/register"
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+
+
+<center><h3>Register </h3></center>
+
+<div class="login-container">
+    <div class="login-card">
+        <h2>Welcome Back</h2>
+        <p class="subtitle">Register in to continue</p>
+
+        @if (!string.IsNullOrWhiteSpace(Message))
+        {
+            <p class="error">@Message</p>
+        }
+
+        <input class="input" @bind="Email" placeholder="Email" />
+        <input class="input" type="password" @bind="Password" placeholder="Password" />
+        <input class="input" type="password" @bind="ReEnterPassword" placeholder="RrEnter Password" />
+
+        <button class="btn-login" @onclick="RegisterUser">Register</button>
+    </div>
+</div>
+
+
+
+
+
+
+
+
+@if (!string.IsNullOrWhiteSpace(Message))
+{
+    <h3 style="color:@MessageColor">@Message</h3>
+}
+@code {
+    string Email = "";
+    string Password = "";
+    string Message = "";
+    string MessageColor = "red";
+    string ReEnterPassword = ""; 
+
+    private async Task RegisterUser()
+    {
+        var model = new { Email, Password };
+        try
+        {
+            if (Password == ReEnterPassword)
+            {
+                var response = await Http.PostAsJsonAsync("api/auth/register", model);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Message = "Registration successful! Redirecting to login...";
+                    MessageColor = "green";
+                    await Task.Delay(1500);
+                    Message = "Confirm Your Email , Email has been Sent ";
+                    // Nav.NavigateTo("/login");
+                }
+
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    Message = "Failed: " + error;
+                }
+            }
+            else
+            {
+                Message = "Password Not Matched";
+            }
+        }
+        catch (Exception ex)
+        {
+            Message = ex.Message;
+        }
+    }
+}

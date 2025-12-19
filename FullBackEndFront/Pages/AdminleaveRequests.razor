@@ -1,0 +1,130 @@
+﻿@page "/admin/leave-requests"
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@attribute [Authorize(Roles = "Admin")]
+
+<PageTitle>Leave Requests</PageTitle>
+
+<h3 class="mb-4">Manage Leave Requests</h3>
+
+@if (leaveRequests == null)
+{
+    <p>Loading...</p>
+}
+else if (!leaveRequests.Any())
+{
+    <p class="text-muted">No leave requests found.</p>
+}
+else
+{
+    <table class="table table-bordered table-hover align-middle">
+        <thead class="table-light">
+            <tr>
+                <th>User</th>
+                <th>Type</th>
+                <th>Period</th>
+                <th>Status</th>
+                <th>Reason</th>
+                <th style="width:160px">Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var l in leaveRequests)
+            {
+                <tr>
+                    <td>@l.UserEmail</td>
+                    <td>@l.LeaveType</td>
+                    <td>
+                        @l.StartDate.ToString("dd/MM/yyyy")
+                        -
+                        @l.EndDate.ToString("dd/MM/yyyy")
+                    </td>
+                    <td>
+                        <span class="badge bg-@GetStatusColor(l.Status)">
+                            @l.Status
+                        </span>
+                    </td>
+                    <td class="text-break" style="max-width:300px">
+                        @l.Reason
+                    </td>
+                    <td>
+                        @if (l.Status == "Pending")
+                        {
+                            <button class="btn btn-success btn-sm me-1"
+                                    @onclick="() => UpdateStatus(l.LeaveRequestId, LeaveStatuses.Approved)">
+                                Approve
+                            </button>
+
+                            <button class="btn btn-danger btn-sm"
+                                    @onclick="() => UpdateStatus(l.LeaveRequestId, LeaveStatuses.Rejected)">
+                                Reject
+                            </button>
+
+
+
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+@code {
+    List<LeaveRequestAdminDto> leaveRequests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await Auth.GetTokenAsync();
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        leaveRequests = await Http.GetFromJsonAsync<List<LeaveRequestAdminDto>>(
+            "api/Users/admin/leave-requests");
+    }
+
+    async Task UpdateStatus(int id, string status)
+    {
+        var token = await Auth.GetTokenAsync();
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.PutAsJsonAsync(
+            $"api/Users/admin/leave-requests/{id}/status", status);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var item = leaveRequests.First(x => x.LeaveRequestId == id);
+            item.Status = status;
+        }
+    }
+
+    string GetStatusColor(string status) => status switch
+    {
+        "Approved" => "success",
+        "Rejected" => "danger",
+        _ => "warning"
+    };
+
+
+    public class LeaveRequestAdminDto
+    {
+        public int LeaveRequestId { get; set; }
+        public string UserEmail { get; set; }
+        public string LeaveType { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string Status { get; set; }
+        public string Reason { get; set; }
+    }
+    public static class LeaveStatuses
+    {
+        public const string Pending = "Pending";
+        public const string Approved = "Approved";
+        public const string Rejected = "Rejected";
+    }
+}

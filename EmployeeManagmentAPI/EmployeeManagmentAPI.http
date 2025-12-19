@@ -1,0 +1,73 @@
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJkN2Y2YzBmMC1iMTRlLTQ4YWEtYjcxYS04ZGExOGZjYTBhYzciLCJlbWFpbCI6IkFybWluQGFybWluLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiZDdmNmMwZjAtYjE0ZS00OGFhLWI3MWEtOGRhMThmY2EwYWM3IiwiZXhwIjoxNzY0NzY4ODAyLCJpc3MiOiJBcnNhckNvbSIsImF1ZCI6IkFyc2FyQ29tIn0.9gt5dFrtCKViZ_SZMvq37OwJYYGmsqbTxJ8Ik0vvE7g
+
+GET https://localhost:7237/api/auth/protected
+Authorization: Bearer {{token}}
+Accept: application/json
+
+###
+POST http://localhost:5004/api/auth/register
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "youTube@example.com4",
+    "password": "Test@1234"
+}
+
+### Login user
+POST https://localhost:7237/api/auth/login
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "Armin@armin.com",
+    "password": "Armin557"
+}
+
+
+### Change current user's password
+POST https://localhost:7237/api/auth/change-password
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+  "currentPassword": "Test@1234",
+  "newPassword": "NewTest@999999"
+}
+
+###
+POST https://localhost:7237/api/auth/enable-2fa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+{
+    "userId": "d7f6c0f0-b14e-48aa-b71a-8da18fca0ac7"
+}
+###
+POST https://localhost:7237/api/auth/verify-2fa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+    "userId": "d7f6c0f0-b14e-48aa-b71a-8da18fca0ac7",
+    "code": "259335"
+}
+
+###
+POST https://localhost:7237/api/auth/login-2fa
+Authorization: Bearer {{token}}
+Content-Type: application/json
+Accept: application/json
+
+{
+    "userId": "d7f6c0f0-b14e-48aa-b71a-8da18fca0ac7",
+    "code": "402671"
+}
+###
+GET https://localhost:7237/api/auth/test
+Accept: application/json
+###
+GET https://localhost:7237/api/ip/getuserip
+Accept: application/json

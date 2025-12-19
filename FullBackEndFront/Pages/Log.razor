@@ -1,0 +1,126 @@
+﻿@page "/login"
+
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+@inject Blazored.LocalStorage.ILocalStorageService LocalStorage
+
+<center><h3>Sign In </h3></center>
+
+<div class="login-container">
+    <div class="login-card">
+        <h2>Welcome Back</h2>
+        <p class="subtitle">Sign in to continue</p>
+
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <p class="error">@Error</p>
+        }
+
+        @if (!show2FAInput)
+        {
+            <input class="input" @bind="Email" placeholder="Email" />
+            <input class="input" type="password" @bind="Password" placeholder="Password" />
+            <button class="btn-login" @onclick="LoginUser">Login</button>
+            <hr />
+            <button class="btn-google" @onclick="LoginWithGoogle">Login with Google</button>
+
+        }
+        else
+        {
+            <input class="input" @bind="TwoFactorCode" placeholder="Enter 2FA code" />
+            <button class="btn-login" @onclick="Verify2FA">Verify 2FA</button>
+        }
+
+        <p>
+            <a href="/forgot-password">Forgot Password?</a>
+        </p>
+
+    </div>
+</div>
+
+@code {
+    string Email = "";
+    string Password = "";
+    string TwoFactorCode = "";
+    string Error;
+    bool show2FAInput = false;
+    string userIdFor2FA;
+
+    private void LoginWithGoogle()
+    {
+        var redirectUri = Nav.BaseUri + "oauth-callback"; // e.g., https://localhost:5001/oauth-callback
+        var url = $"https://localhost:7237/api/auth/external-login?provider=Google&redirectUri={redirectUri}";
+        Nav.NavigateTo(url, true); // full redirect
+    }
+
+
+    private async Task LoginUser()
+    {
+        try
+        {
+            var model = new { Email, Password };
+            var response = await Http.PostAsJsonAsync("api/auth/login", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Error = "Invalid credentials";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+
+            if (result.Requires2FA)
+            {
+                // 2FA is required → show input
+                userIdFor2FA = result.UserId;
+                show2FAInput = true;
+                Error = "Enter your 6-digit code from Google Authenticator";
+            }
+            else
+            {
+                // Normal login → store JWT and redirect
+               // await LocalStorage.SetItemAsync("jwt", result.Token);
+                await Auth.SetTokenAsync(result.Token);
+                Nav.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+    private async Task Verify2FA()
+    {
+        try
+        {
+            var model = new { UserId = userIdFor2FA, Code = TwoFactorCode };
+            var response = await Http.PostAsJsonAsync("api/auth/login-2fa", model);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Error = "Invalid 2FA code";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<LoginResponseDto>();
+            await LocalStorage.SetItemAsync("jwt", result.Token);
+            await Auth.SetTokenAsync(result.Token);
+            Nav.NavigateTo("/");
+        }
+        catch (Exception ex)
+        {
+            Error = ex.Message;
+        }
+    }
+
+    public class LoginResponseDto
+    {
+        public bool Requires2FA { get; set; }
+        public string UserId { get; set; }
+        public string Token { get; set; }
+        public string Email { get; set; }
+        public DateTime Expires { get; set; }
+    }
+}

@@ -1,0 +1,75 @@
+﻿@page "/all-attendance/{UserId}"
+@using System.Net.Http.Headers
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+<h3>All Attendance Records</h3>
+
+@if (attendances == null)
+{
+    <p><em>Loading...</em></p>
+}
+else if (!attendances.Any())
+{
+    <p>No attendance records found for this user.</p>
+}
+else
+{
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Check In</th>
+                <th>Check Out</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var a in attendances.OrderByDescending(a => a.Date))
+            {
+                <tr>
+                    <td>@a.Date.ToString("dd/MM/yyyy")</td>
+                    <td>@a.CheckIn.ToShortTimeString()</td>
+                    <td>@a.CheckOut?.ToShortTimeString()</td>
+                    <td>@a.Status</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    [Parameter]
+    public string UserId { get; set; }
+
+    private List<AttendanceDTO> attendances;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Get JWT token from local storage (or wherever you store it)
+        var token = await Auth.GetTokenAsync();
+        if (!string.IsNullOrEmpty(token))
+        {
+            Http.DefaultRequestHeaders.Authorization =
+                new AuthenticationHeaderValue("Bearer", token);
+        }
+
+        try
+        {
+            // Call your protected API endpoint
+            attendances = await Http.GetFromJsonAsync<List<AttendanceDTO>>($"api/Users/attendance/{UserId}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine("Error fetching attendance: " + ex.Message);
+            attendances = new List<AttendanceDTO>();
+        }
+    }
+
+    public class AttendanceDTO
+    {
+        public DateTime Date { get; set; }
+        public DateTime CheckIn { get; set; }
+        public DateTime? CheckOut { get; set; }
+        public string Status { get; set; }
+    }
+}

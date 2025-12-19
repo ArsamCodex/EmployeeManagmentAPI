@@ -1,0 +1,144 @@
+﻿@page "/role-manager"
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "Admin")]
+
+<h3>Role Manager</h3>
+
+@if (users == null)
+{
+    <p>Loading users...</p>
+}
+else
+{
+    <table class="role-table">
+        <thead>
+            <tr>
+                <th>Email</th>
+                <th>Roles</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var u in users)
+            {
+                <tr>
+                    <td>@u.Email</td>
+                    <td>@string.Join(", ", u.Roles)</td>
+                    <td>
+                        @foreach (var role in allRoles)
+                        {
+                            <button class="btn-add"
+                                    disabled="@IsAddDisabled(u, role)" 
+                                    @onclick="() => AddRole(u, role)">
+                                Add @role
+                            </button>
+                            <button class="btn-remove"
+                                    disabled="@IsRemoveDisabled(u, role)"
+                                    @onclick="() => RemoveRole(u, role)">
+                                Remove @role
+                            </button>
+
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<UserDto> users;
+    List<string> allRoles = new List<string> { "Admin", "User", "Moderator" };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+    private bool IsRemoveDisabled(UserDto user, string role)
+    {
+        return !(user.Roles != null && user.Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase)));
+    }
+    private bool IsAddDisabled(UserDto user, string role)
+    {
+        return user.Roles != null && user.Roles.Any(r => r.Equals(role, StringComparison.OrdinalIgnoreCase));
+    }
+    private async Task LoadUsers()
+    {
+        var token = await Auth.GetTokenAsync();
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/roles/users");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.SendAsync(request);
+
+        if (response.IsSuccessStatusCode)
+        {
+            users = await response.Content.ReadFromJsonAsync<List<UserDto>>();
+
+            // Ensure Roles is not null
+            foreach (var user in users)
+            {
+                user.Roles ??= new List<string>();
+            }
+        }
+        else
+        {
+            Nav.NavigateTo("/login");
+        }
+    }
+
+   
+
+    private async Task AddRole(UserDto user, string role)
+    {
+        var token = await Auth.GetTokenAsync();
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/roles/add-role")
+        {
+            Content = JsonContent.Create(new { UserId = user.Id, Role = role })
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            // Add to the list if not present
+            if (!user.Roles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase)))
+                user.Roles.Add(role);
+        }
+    }
+
+    private async Task RemoveRole(UserDto user, string role)
+    {
+        var token = await Auth.GetTokenAsync();
+        var request = new HttpRequestMessage(HttpMethod.Post, "api/roles/remove-role")
+        {
+            Content = JsonContent.Create(new { UserId = user.Id, Role = role })
+        };
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            // Remove from the list if present
+            var existingRole = user.Roles.FirstOrDefault(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase));
+            if (existingRole != null)
+                user.Roles.Remove(existingRole);
+        }
+    }
+
+
+    public class UserDto
+    {
+        public string Id { get; set; }
+        public string Email { get; set; }
+        public List<string> Roles { get; set; } = new List<string>();
+    }
+}

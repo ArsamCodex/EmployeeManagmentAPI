@@ -1,0 +1,180 @@
+﻿@page "/Leave-Request"
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@using System.Net.Http.Headers
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+<PageTitle>Request Leave</PageTitle>
+
+<h3 class="mb-4">Request Leave</h3>
+
+<!-- Leave Request Form -->
+<div class="card shadow p-4 mb-4">
+    <div class="mb-3">
+        <label class="form-label">Leave Type</label>
+        <select class="form-select" @bind="model.LeaveType">
+            <option value="">-- Select --</option>
+            <option>Sick</option>
+            <option>Vacation</option>
+            <option>Personal</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Start Date</label>
+        <InputDate class="form-control" @bind-Value="model.StartDate" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">End Date</label>
+        <InputDate class="form-control" @bind-Value="model.EndDate" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Reason</label>
+        <textarea class="form-control" rows="3" @bind="model.Reason"></textarea>
+    </div>
+
+    @if (!string.IsNullOrEmpty(message))
+    {
+        <div class="alert alert-@messageType">
+            @message
+        </div>
+    }
+
+    <button class="btn btn-primary w-100" @onclick="Submit">
+        Submit Request
+    </button>
+</div>
+
+<!-- Existing Leave Requests -->
+<div class="card shadow p-4">
+    <h5>My Leave Requests</h5>
+    @if (leaveRequests == null)
+    {
+        <p>Loading...</p>
+    }
+    else if (!leaveRequests.Any())
+    {
+        <p class="text-muted">No leave requests yet.</p>
+    }
+    else
+    {
+        <table class="table table-bordered table-sm leave-table">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">Type</th>
+                    <th style="width: 20%;">Period</th>
+                    <th style="width: 15%;">Status</th>
+                    <th style="width: 50%;">Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var l in leaveRequests)
+                {
+                    <tr>
+                        <td>@l.LeaveType</td>
+                        <td>@l.StartDate.ToString("dd/MM/yyyy") - @l.EndDate.ToString("dd/MM/yyyy")</td>
+                        <td class="@GetStatusClass(l.Status)">
+                            @l.Status
+                        </td>
+                        <td class="reason-column">@l.Reason</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+
+    }
+</div>
+
+
+
+@code {
+    private LeaveRequestDTO model = new LeaveRequestDTO();
+    private List<LeaveRequestDTO> leaveRequests;
+
+    private string message;
+    private string messageType;
+    private string GetStatusClass(string status)
+    {
+        return status switch
+        {
+            "Approved" => "bg-success text-white text-center",
+            "Rejected" => "bg-danger text-white text-center",
+            _ => "bg-warning text-dark text-center" // Pending or other
+        };
+    }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLeaveRequests();
+    }
+
+    private async Task LoadLeaveRequests()
+    {
+        try
+        {
+            var token = await Auth.GetTokenAsync();
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            leaveRequests = await Http.GetFromJsonAsync<List<LeaveRequestDTO>>("api/Users/leave-requests");
+        }
+        catch
+        {
+            leaveRequests = new List<LeaveRequestDTO>();
+        }
+    }
+
+    private async Task Submit()
+    {
+        try
+        {
+            var token = await Auth.GetTokenAsync();
+            Http.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+            var response = await Http.PostAsJsonAsync("api/Users/leave-requests", model);
+
+            if (response.IsSuccessStatusCode)
+            {
+                message = "Leave request submitted successfully.";
+                messageType = "success";
+                model = new LeaveRequestDTO(); // Reset form
+                await LoadLeaveRequests(); // Reload list
+            }
+            else
+            {
+                message = "Failed to submit leave request.";
+                messageType = "danger";
+            }
+        }
+        catch (Exception ex)
+        {
+            message = $"Error: {ex.Message}";
+            messageType = "danger";
+        }
+    }
+
+
+
+
+
+    public class LeaveRequestDTO
+    {
+        public int LeaveRequestId { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string LeaveType { get; set; }
+        public string Status { get; set; }
+        public string Reason { get; set; }
+    }
+    public class CreateLeaveRequestDto
+    {
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string LeaveType { get; set; }
+        public string Reason { get; set; }
+    }
+
+}

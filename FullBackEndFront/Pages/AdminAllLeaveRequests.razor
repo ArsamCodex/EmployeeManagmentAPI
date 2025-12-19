@@ -1,0 +1,129 @@
+﻿@page "/admin/Allleave-requests"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+<PageTitle>Leave Requests</PageTitle>
+
+<h3 class="mb-4">All Leave Requests</h3>
+
+@if (leaveRequests == null)
+{
+    <div class="spinner-border text-primary"></div>
+}
+else if (!leaveRequests.Any())
+{
+    <p class="text-muted">No leave requests found.</p>
+}
+else
+{
+    <table class="table table-bordered table-sm leave-table">
+        <thead class="table-light">
+            <tr>
+                <th>Email</th>
+                <th>Type</th>
+                <th>Period</th>
+                <th>Status</th>
+                <th style="width:35%">Reason</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var l in leaveRequests)
+            {
+                <tr class="@GetRowClass(l.Status)">
+                    <td>@l.UserEmail</td>
+                    <td>@l.LeaveType</td>
+                    <td>
+                        @l.StartDate.ToString("dd/MM/yyyy")
+                        -
+                        @l.EndDate.ToString("dd/MM/yyyy")
+                    </td>
+                    <td>
+                        <span class="badge @GetBadgeClass(l.Status)">
+                            @l.Status
+                        </span>
+                    </td>
+                    <td class="reason-column">@l.Reason</td>
+                    <td>
+                        @if (l.Status == LeaveStatuses.Pending)
+                        {
+                            <button class="btn btn-sm btn-success me-1"
+                                    @onclick="() => UpdateStatus(l.LeaveRequestId, LeaveStatuses.Approved)">
+                                Approve
+                            </button>
+
+                            <button class="btn btn-sm btn-danger"
+                                    @onclick="() => UpdateStatus(l.LeaveRequestId, LeaveStatuses.Rejected)">
+                                Reject
+                            </button>
+                        }
+                        else
+                        {
+                            <span class="text-muted">—</span>
+                        }
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+@code {
+    List<LeaveRequestAdminDto>? leaveRequests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await Auth.GetTokenAsync();
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        leaveRequests = await Http.GetFromJsonAsync<List<LeaveRequestAdminDto>>(
+            "api/Users/admin/Allleave-requests");
+    }
+
+    async Task UpdateStatus(int id, string status)
+    {
+        var token = await Auth.GetTokenAsync();
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        var response = await Http.PutAsJsonAsync(
+            $"api/Users/admin/Allleave-requests/{id}/status",
+            status);
+
+        if (response.IsSuccessStatusCode)
+        {
+            var item = leaveRequests.First(l => l.LeaveRequestId == id);
+            item.Status = status;
+            StateHasChanged();
+        }
+    }
+
+    string GetBadgeClass(string status) => status switch
+    {
+        LeaveStatuses.Approved => "bg-success",
+        LeaveStatuses.Rejected => "bg-danger",
+        LeaveStatuses.Pending => "bg-warning text-dark",
+        _ => "bg-secondary"
+    };
+
+    string GetRowClass(string status) =>
+        status == LeaveStatuses.Pending ? "table-warning" : "";
+
+    public static class LeaveStatuses
+    {
+        public const string Pending = "Pending";
+        public const string Approved = "Approved";
+        public const string Rejected = "Rejected";
+    }
+    public class LeaveRequestAdminDto
+    {
+        public int LeaveRequestId { get; set; }
+        public string UserEmail { get; set; }
+        public string LeaveType { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime EndDate { get; set; }
+        public string Status { get; set; }
+        public string Reason { get; set; }
+    }
+
+  
+}

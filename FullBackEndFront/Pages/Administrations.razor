@@ -1,0 +1,115 @@
+﻿@page "/Admin"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Admin")]
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+
+<PageTitle>Admin - Users</PageTitle>
+
+<h3 class="mb-4">All Users</h3>
+
+@if (users == null)
+{
+    <div class="text-center mt-5">
+        <div class="spinner-border text-primary"></div>
+        <p class="mt-2">Loading users...</p>
+    </div>
+}
+else if (!users.Any())
+{
+    <div class="alert alert-info">No users found.</div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>Image</th>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Email Confirmed</th>
+                    <th>Phone</th>
+                    <th>DOB</th>
+                    <th>Lockout</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var u in users)
+                {
+                    <tr>
+                        <td class="text-center">
+                            <img src="@(u.ProfileImageUrl ?? "/profiles/default.jpg")"
+                                 style="width:40px;height:40px;border-radius:50%;object-fit:cover;" />
+                        </td>
+                        <td>
+                            <a class="fw-bold text-decoration-none"
+                               href="/admin/users/@u.Id">
+                                @u.UserName
+                            </a>
+                        </td>
+
+                        <td>@u.Email</td>
+                        <td>
+                            <span class="badge bg-@(u.EmailConfirmed ? "success" : "secondary")">
+                                @(u.EmailConfirmed ? "Yes" : "No")
+                            </span>
+                        </td>
+                        <td>@u.PhoneNumber</td>
+                        <td>@(u.DateOfBirth?.ToString("dd/MM/yyyy") ?? "-")</td>
+                        <td>
+                            @if (u.LockoutEnabled && u.LockoutEnd > DateTimeOffset.UtcNow)
+                            {
+                                <span class="badge bg-danger">Locked</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-success">Active</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+@code {
+    private List<AdminUserListDTO>? users;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var token = await Auth.GetTokenAsync();
+        if (string.IsNullOrEmpty(token))
+        {
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        Http.DefaultRequestHeaders.Authorization =
+            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        try
+        {
+            users = await Http.GetFromJsonAsync<List<AdminUserListDTO>>(
+                "api/Users/admin/users");
+        }
+        catch
+        {
+            users = new List<AdminUserListDTO>();
+        }
+    }
+
+    public class AdminUserListDTO
+    {
+        public string Id { get; set; }
+        public string UserName { get; set; }
+        public string Email { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public string? PhoneNumber { get; set; }
+        public bool LockoutEnabled { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
+        public string? ProfileImageUrl { get; set; }
+        public DateTime? DateOfBirth { get; set; }
+    }
+}

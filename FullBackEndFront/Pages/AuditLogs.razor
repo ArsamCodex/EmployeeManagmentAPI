@@ -1,0 +1,76 @@
+﻿@page "/audit-logs"
+@using Microsoft.AspNetCore.Authorization
+@inject HttpClient Http
+@inject JwtAuthStateProvider Auth
+@inject NavigationManager Nav
+@attribute [Authorize(Roles = "Admin")]
+
+<h3>Audit / Logs</h3>
+
+@if (logs == null)
+{
+    <p>Loading logs...</p>
+}
+else
+{
+    <table class="role-table audit-table">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Description</th>
+                <th>IP</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var log in logs)
+            {
+                <tr>
+                    <td>@log.Timestamp.ToLocalTime()</td>
+                    <td>@log.UserEmail</td>
+                    <td>@log.Action</td>
+                    <td>@log.Description</td>
+                    <td>@log.IpAdress</td>
+
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    List<AuditLogDto> logs;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLogs();
+    }
+
+    private async Task LoadLogs()
+    {
+        var token = await Auth.GetTokenAsync();
+        Console.WriteLine($"JWT: {token}");
+     
+
+        var request = new HttpRequestMessage(HttpMethod.Get, "api/roles/audit-logs");
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
+        var response = await Http.SendAsync(request);
+        if (response.IsSuccessStatusCode)
+        {
+            logs = await response.Content.ReadFromJsonAsync<List<AuditLogDto>>();
+        }
+      
+    }
+
+    public class AuditLogDto
+    {
+        public string UserEmail { get; set; }
+        public string Action { get; set; }
+        public string Description { get; set; }
+        public DateTime Timestamp { get; set; }
+        public string IpAdress { get; set; }
+
+    }
+}
